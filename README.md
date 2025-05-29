@@ -13,13 +13,8 @@ This code is to balance unbalanced scale as mentioned in the attahed problem doc
 
 2) **BalancingScale.cpp :**
 ----------------------
-1. Code is written to achieve best possible Ultra Low Latency taking care all possible considerations like - Memory pool, pipelining, cache line, prefetch etc. 
+1. Code is written to achieve best possible Ultra Low Latency taking care all possible considerations like - Memory pool, pipelining, cacheline, prefetch, SIMD etc. 
 2. Code is written in production standard.
-3. Older compiler may not support certain modern C++ library. So, pls install the library if compilation fails. For example: I had to install llvm library to support to_char/from_char()
-4. Use correct command/flags/path to compile as per your machine. For example, I  compile like this on my MacBook :
-
-> /opt/homebrew/opt/llvm/bin/clang++ -std=c++20 -stdlib=libc++ -I/opt/homebrew/opt/llvm/include -L/opt/homebrew/opt/llvm/lib -Wall -O3 /Users/azad/Documents/C++/BalancingScale/BalancingScale.cpp -o /Users/azad/Documents/C++/BalancingScale/BalancingScale 
-
 
 3) **BalancingScale_Test_Data_Generator.py :**
 ----------------------------------------
@@ -27,7 +22,18 @@ This code is to balance unbalanced scale as mentioned in the attahed problem doc
 2. Command to run:
    > python3 BalancingScale_Data_Generator.py
 
-===========================================================================================================================================
+**Compilation:**
+
+1. Older compiler may not support certain modern C++ library. So, pls install the library if compilation fails. For example: I had to install llvm library to support to_char/from_char()
+2. Use correct command/flags/path to compile as per your machine. For example, I  compile like this on my MacBook :
+
+> /opt/homebrew/opt/llvm/bin/clang++ -std=c++20 -stdlib=libc++ -I/opt/homebrew/opt/llvm/include -L/opt/homebrew/opt/llvm/lib -Wall -O3 /Users/azad/Documents/C++/BalancingScale/BalancingScale.cpp -o /Users/azad/Documents/C++/BalancingScale/BalancingScale
+
+
+**How to run the code:**
+./BalancingScale < Your_Input_File.txt
+
+==============================================================================
 Contact: If any issue or suggestion, kindly contact at sheikhazad2@yahoo.com
 
 
