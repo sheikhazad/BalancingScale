@@ -31,7 +31,10 @@ This code is to balance unbalanced scale as mentioned in the attahed problem doc
 
 
 **How to run the code:**
-./BalancingScale < Your_Input_File.txt
+ > ./BalancingScale < Your_Input_File.txt
+
+**Input Display:**  
+               To turn on/off display input lines, set DISPLAY_INPUT_LINES = true/false in BalancingScale.cpp
 
 ==============================================================================
 Contact: If any issue or suggestion, kindly contact at sheikhazad2@yahoo.com
