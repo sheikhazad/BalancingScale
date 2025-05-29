@@ -43,6 +43,7 @@ namespace Config {
     constexpr size_t EXPECTED_MAX_PARENTS = 3;  // Optimize for common case of 1-3 parents
     constexpr int BASE_SCALE_MASS = 1;  // Each scale weighs 1kg by itself
     //constexpr int MAX_MASS_VALUE = 1000000;  // Reasonable upper bound for mass values
+    constexpr bool DISPLAY_INPUT_LINES = true;  // Flag to control input display
 
     // Test cases (using proper line endings for test cases)
     static constexpr const char* TEST_CASE_1 = 
@@ -154,6 +155,21 @@ class ScaleBalancer {
         size_t estimated_cache_lines = 0;
         size_t memory_used_bytes = 0;
     } benchmark_stats_;
+
+    /**
+     * @brief Displays input lines if enabled in config
+     */
+    void display_input_lines() const {
+        if (Config::DISPLAY_INPUT_LINES) {
+            std::cerr << "\n=== Input Lines ===\n";
+            for (const auto& line : input_lines_) {
+                if (!line.empty() && line[0] != '#') {
+                    std::cerr << line << "\n";
+                }
+            }
+            std::cerr << "=================\n";
+        }
+    }
 
     /**
      * @brief Allocates and tracks a new ScaleNode
@@ -283,6 +299,57 @@ class ScaleBalancer {
         return (!node->left_child || node->left_child->processed) &&
                (!node->right_child || node->right_child->processed);
     }
+
+/*///////////////////////////////////////////////////////////////////////////
+SIMD Optimizations (AVX2):
+
+While SIMD could potentially help, in this specific case:
+
+Limited Benefit: The core algorithm processes nodes sequentially with dependencies between calculations (each node depends on its children's totals)
+Branching Logic: The cycle detection and topological sorting make SIMD difficult to apply effectively
+Memory Bound: The algorithm is likely memory-bound rather than compute-bound
+
+Thus,  in practice, this SIMD version may not be faster because:
+-The overhead of loading values into SIMD registers
+-The simple scalar version is already very efficient
+-The compiler may auto-vectorize it anyway
+-------------------------------------------------------------------------------*/
+/*
+    #include <immintrin.h>  // For AVX2 intrinsics
+
+void process_single_scale(ScaleNode* node) {
+    if (node->visiting) {
+        throw std::runtime_error("Cycle detected in scale tree");
+    }
+    node->visiting = true;
+
+    // Calculate total mass on each side including subtrees
+    const int left_total = node->left_mass + 
+                         (node->left_child ? node->left_child->total_mass : 0);
+    const int right_total = node->right_mass + 
+                          (node->right_child ? node->right_child->total_mass : 0);
+
+    // AVX2 optimized imbalance calculation
+    __m256i masses = _mm256_set_epi32(0, 0, 0, 0, 0, right_total, left_total, 0);
+    __m256i imbalance_vec = _mm256_sub_epi32(masses, _mm256_permutevar8x32_epi32(masses, _mm256_set_epi32(0,0,0,0,0,0,1,0)));
+    int imbalance = _mm256_extract_epi32(imbalance_vec, 0);
+
+    // Determine needed adjustments
+    node->adjust_left = std::max(0, -imbalance);
+    node->adjust_right = std::max(0, imbalance);
+
+    // Update total mass (self + left + right + adjustments)
+    node->total_mass = Config::BASE_SCALE_MASS + left_total + right_total +
+                      node->adjust_left + node->adjust_right;
+
+    node->processed = true;
+    node->visiting = false;
+    benchmark_stats_.estimated_cache_lines++;
+    if (!node->extra_parents.empty()) benchmark_stats_.estimated_cache_lines++;
+}
+
+/////////////////////////////////////////////////////////////////////////
+ */
 
     /**
      * @brief Processes a single scale to calculate balance
@@ -421,6 +488,9 @@ public:
         }
         benchmark_stats_.parse_time_us = std::chrono::duration_cast<std::chrono::microseconds>(
             std::chrono::high_resolution_clock::now() - parse_start).count();
+
+        // Display input lines if enabled
+        display_input_lines();
 
         // Phase 2: Process scales
         auto process_start = std::chrono::high_resolution_clock::now();
