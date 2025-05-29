@@ -10,7 +10,7 @@
 #include <memory>
 #include <chrono>
 #include <limits>
-//#include <new> 
+#include <cassert>
 
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -20,10 +20,11 @@
  * @brief Prefetches memory data into cache to reduce latency
  * @param ptr Pointer to memory location to prefetch
  * @note Uses platform-specific intrinsics for optimal performance
+ * @note Uses read-only prefetch with high temporal locality
  */
 inline void prefetch(const void* ptr) noexcept {
 #if defined(__GNUC__) || defined(__clang__)
-    __builtin_prefetch(ptr, 0, 3);  // Read-only, temporal locality
+    __builtin_prefetch(ptr, 0, 3);  // Read-only, high temporal locality
 #elif defined(_MSC_VER)
     _mm_prefetch(static_cast<const char*>(ptr), _MM_HINT_T0);
 #endif
@@ -41,6 +42,7 @@ namespace Config {
     constexpr size_t INITIAL_NODE_POOL_SIZE = 2048;  // Balance between memory usage and allocations
     constexpr size_t EXPECTED_MAX_PARENTS = 3;  // Optimize for common case of 1-3 parents
     constexpr int BASE_SCALE_MASS = 1;  // Each scale weighs 1kg by itself
+    //constexpr int MAX_MASS_VALUE = 1000000;  // Reasonable upper bound for mass values
 
     // Test cases (using proper line endings for test cases)
     static constexpr const char* TEST_CASE_1 = 
@@ -440,13 +442,6 @@ public:
     }
 };
 
-/**
- * @brief Runs a single test case
- * @param input Input string for test case
- * @param expected_output Expected output string
- * @param test_name Name of test for reporting
- * @return True if test passed
- */
 bool run_test_case(const std::string& input, const std::string& expected_output, 
                   const std::string& test_name) {
     std::istringstream input_stream(input);
@@ -477,10 +472,6 @@ bool run_test_case(const std::string& input, const std::string& expected_output,
     }
 }
 
-/**
- * @brief Runs all test cases
- * @details Exits with error code if any test fails
- */
 void run_all_tests() {
     bool all_passed = true;
     all_passed &= run_test_case(Config::TEST_CASE_1, Config::EXPECTED_OUTPUT, 
