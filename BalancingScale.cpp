@@ -15,6 +15,9 @@
 #if defined(_MSC_VER)
 #include <intrin.h>
 #endif
+#ifdef __AVX2__
+#include <immintrin.h>  // For SIMD AVX2 intrinsics
+#endif
 
 /**
  * @brief Prefetches memory data into cache to reduce latency
@@ -300,7 +303,13 @@ class ScaleBalancer {
                (!node->right_child || node->right_child->processed);
     }
 
-/*///////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Processes a single scale to calculate balance with SIMD optimizations
+     * @param node Scale node to process
+     * @throws std::runtime_error if cycle detected
+     * @note Uses AVX2 intrinsics when available, falls back to scalar operations otherwise
+     */
+    /*///////////////////////////////////////////////////////////////////////////
 SIMD Optimizations (AVX2):
 
 While SIMD could potentially help, in this specific case:
@@ -314,48 +323,8 @@ Thus,  in practice, this SIMD version may not be faster because:
 -The simple scalar version is already very efficient
 -The compiler may auto-vectorize it anyway
 -------------------------------------------------------------------------------*/
-/*
-    #include <immintrin.h>  // For AVX2 intrinsics
-
-void process_single_scale(ScaleNode* node) {
-    if (node->visiting) {
-        throw std::runtime_error("Cycle detected in scale tree");
-    }
-    node->visiting = true;
-
-    // Calculate total mass on each side including subtrees
-    const int left_total = node->left_mass + 
-                         (node->left_child ? node->left_child->total_mass : 0);
-    const int right_total = node->right_mass + 
-                          (node->right_child ? node->right_child->total_mass : 0);
-
-    // AVX2 optimized imbalance calculation
-    __m256i masses = _mm256_set_epi32(0, 0, 0, 0, 0, right_total, left_total, 0);
-    __m256i imbalance_vec = _mm256_sub_epi32(masses, _mm256_permutevar8x32_epi32(masses, _mm256_set_epi32(0,0,0,0,0,0,1,0)));
-    int imbalance = _mm256_extract_epi32(imbalance_vec, 0);
-
-    // Determine needed adjustments
-    node->adjust_left = std::max(0, -imbalance);
-    node->adjust_right = std::max(0, imbalance);
-
-    // Update total mass (self + left + right + adjustments)
-    node->total_mass = Config::BASE_SCALE_MASS + left_total + right_total +
-                      node->adjust_left + node->adjust_right;
-
-    node->processed = true;
-    node->visiting = false;
-    benchmark_stats_.estimated_cache_lines++;
-    if (!node->extra_parents.empty()) benchmark_stats_.estimated_cache_lines++;
-}
-
-/////////////////////////////////////////////////////////////////////////
- */
-
-    /**
-     * @brief Processes a single scale to calculate balance
-     * @param node Scale node to process
-     * @throws std::runtime_error if cycle detected
-     */
+    // Note: This function is designed to be called in a topological order
+    //       to ensure all child nodes are processed before their parents.
     void process_single_scale(ScaleNode* node) {
         if (node->visiting) {
             throw std::runtime_error("Cycle detected in scale tree");
@@ -367,11 +336,23 @@ void process_single_scale(ScaleNode* node) {
                              (node->left_child ? node->left_child->total_mass : 0);
         const int right_total = node->right_mass + 
                               (node->right_child ? node->right_child->total_mass : 0);
-        const int imbalance = left_total - right_total;
 
-        // Determine needed adjustments
-        node->adjust_left = std::max(0, -imbalance);
-        node->adjust_right = std::max(0, imbalance);
+#ifdef __AVX2__
+        // AVX2 optimized imbalance calculation
+        __m256i masses = _mm256_set_epi32(0, 0, 0, 0, 0, right_total, left_total, 0);
+        __m256i imbalance_vec = _mm256_sub_epi32(
+            masses, 
+            _mm256_permutevar8x32_epi32(masses, _mm256_set_epi32(0,0,0,0,0,0,1,0))
+        );
+        int imbalance = _mm256_extract_epi32(imbalance_vec, 0);
+#else
+        // Original scalar version
+        int imbalance = left_total - right_total;
+#endif
+
+        // Determine needed adjustments (branchless version)
+        node->adjust_left = imbalance < 0 ? -imbalance : 0;
+        node->adjust_right = imbalance > 0 ? imbalance : 0;
 
         // Update total mass (self + left + right + adjustments)
         node->total_mass = Config::BASE_SCALE_MASS + left_total + right_total +
