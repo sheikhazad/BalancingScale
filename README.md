@@ -16,7 +16,7 @@ This code is to balance unbalanced scale as mentioned in the attahed problem doc
 1. Code is written to achieve best possible Ultra Low Latency taking care all possible considerations like - Memory pool, pipelining, cacheline, prefetch, SIMD etc. 
 2. Code is written in production standard.
 
-3) **BalancingScale_Test_Data_Generator.py :**
+3) **Python_Test_Data_Generator.py :**
 ----------------------------------------
 1. BalancingScale_Test_Data_Generator.py is simple python tool to generate random test data. It will generate input and expected output test data which you can use to test the C++ code.
 2. Command to run:
