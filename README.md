@@ -37,7 +37,7 @@ This code is to balance unbalanced scale as mentioned in the attahed problem doc
                To turn on/off display input lines, set DISPLAY_INPUT_LINES = true/false in BalancingScale.cpp
 
 **Scope for further optimsation:** 
-                Can be used tls::robin_map
+                Can be used tls::robin_map instead of unordered_map
 
 ==============================================================================
 Contact: If any issue or suggestion, kindly contact at sheikhazad2@yahoo.com
